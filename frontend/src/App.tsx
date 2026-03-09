@@ -10,9 +10,10 @@ const App: React.FC = () => {
   const tabBarStyle: React.CSSProperties = {
     display: "flex",
     flexShrink: 0,
-    height: "72px",
     backgroundColor: "#1e3a8a",
     borderTop: "2px solid #1e40af",
+    // paddingBottom accounts for the iPhone home indicator safe area
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
   };
 
   const tabButtonStyle = (isActive: boolean): React.CSSProperties => ({
@@ -26,11 +27,15 @@ const App: React.FC = () => {
     cursor: "pointer",
     backgroundColor: isActive ? "#2563eb" : "transparent",
     color: isActive ? "#ffffff" : "#93c5fd",
-    fontSize: "13px",
+    fontSize: "14px",
     fontWeight: isActive ? "bold" : "normal",
     transition: "background-color 0.15s ease",
-    padding: "8px 4px",
+    // Fixed 72px tap target height — safe area padding is on the nav container
+    height: "72px",
+    padding: "0 4px",
     borderTop: isActive ? "3px solid #60a5fa" : "3px solid transparent",
+    WebkitAppearance: "none",
+    appearance: "none",
   });
 
   const iconStyle: React.CSSProperties = {
@@ -43,8 +48,10 @@ const App: React.FC = () => {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
-        width: "100vw",
+        // 100dvh = dynamic viewport height, correct on iOS Safari (excludes browser chrome)
+        // 100vh fallback for older browsers
+        height: "100dvh",
+        width: "100%",
         overflow: "hidden",
       }}
     >
