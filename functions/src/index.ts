@@ -1,15 +1,13 @@
 import * as functions from "firebase-functions";
 import express from "express";
 import cors from "cors";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "15mb" }));
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
 interface BoundingBox {
   x: number;
@@ -89,27 +87,19 @@ async function analyzeFrameHandler(
       return;
     }
 
-    // Strip data URL prefix if present
+    // Strip data URL prefix if present and get mime type
+    const mimeMatch = image.match(/^data:(image\/[a-z]+);base64,/);
+    const mimeType = (mimeMatch ? mimeMatch[1] : "image/jpeg") as
+      | "image/jpeg"
+      | "image/png"
+      | "image/webp"
+      | "image/heic"
+      | "image/heif";
     const base64Image = image.replace(/^data:image\/[a-z]+;base64,/, "");
 
-    const response = await client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/jpeg",
-                data: base64Image,
-              },
-            },
-            {
-              type: "text",
-              text: `You are helping someone with reading difficulties fill out a paper form. Analyze this image carefully.
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `You are helping someone with reading difficulties fill out a paper form. Analyze this image carefully.
 
 The person has these personal details saved:
 ${savedFields}
@@ -143,30 +133,29 @@ Rules:
 - Only include fields that are clearly visible in the image AND have a matching saved value
 - If no form is visible or no matching fields are found, return { "detectedFields": [] }
 - The boundingBox should cover the blank line or input box, not the field label
-- Return ONLY the JSON, no other text`,
-            },
-          ],
-        },
-      ],
-    });
+- Return ONLY the JSON, no other text`;
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "{}";
+    const geminiResult = await model.generateContent([
+      { inlineData: { mimeType, data: base64Image } },
+      { text: prompt },
+    ]);
 
-    let result: AnalyzeResponse;
+    const text = geminiResult.response.text();
+
+    let parsed: AnalyzeResponse;
     try {
       // Extract JSON from the response (handle any extra text)
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : "{}";
-      result = JSON.parse(jsonStr) as AnalyzeResponse;
-      if (!result.detectedFields) {
-        result = { detectedFields: [] };
+      parsed = JSON.parse(jsonStr) as AnalyzeResponse;
+      if (!parsed.detectedFields) {
+        parsed = { detectedFields: [] };
       }
     } catch {
-      result = { detectedFields: [] };
+      parsed = { detectedFields: [] };
     }
 
-    res.json(result);
+    res.json(parsed);
   } catch (error) {
     console.error("Error analyzing frame:", error);
     res.status(500).json({ error: "Failed to analyze frame" });
