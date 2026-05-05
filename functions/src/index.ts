@@ -1,13 +1,14 @@
 import * as functions from "firebase-functions";
+import { defineSecret } from "firebase-functions/params";
 import express from "express";
 import cors from "cors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
 const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "15mb" }));
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
 interface BoundingBox {
   x: number;
@@ -66,6 +67,8 @@ async function analyzeFrameHandler(
   res: express.Response
 ): Promise<void> {
   try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+
     const { image, personalData } = req.body as {
       image: string;
       personalData: PersonalData;
@@ -97,7 +100,7 @@ async function analyzeFrameHandler(
       | "image/heif";
     const base64Image = image.replace(/^data:image\/[a-z]+;base64,/, "");
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
     const prompt = `You are helping someone with reading difficulties fill out a paper form. Analyze this image carefully.
 
@@ -170,4 +173,4 @@ app.get("/api/health", (_req: express.Request, res: express.Response) => {
   res.json({ status: "ok" });
 });
 
-export const api = functions.https.onRequest(app);
+export const api = functions.https.onRequest({ secrets: [GEMINI_API_KEY] }, app);
