@@ -54,31 +54,28 @@ const CameraPage: React.FC = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (fields.length === 0) return;
 
-    // --- Letterbox calculation for objectFit: contain ---
-    // Fall back to 16:9 before video metadata loads
+    // --- Cover calculation for objectFit: cover ---
+    // The video is scaled up until it fills the container, then centred.
+    // offsetX / offsetY will be negative when the video overflows (is cropped).
     const videoW = video.videoWidth || 1280;
     const videoH = video.videoHeight || 720;
     const videoAspect = videoW / videoH;
     const containerAspect = containerWidth / containerHeight;
 
-    let renderWidth: number;
-    let renderHeight: number;
-    let offsetX: number;
-    let offsetY: number;
-
+    let scale: number;
     if (videoAspect > containerAspect) {
-      // Video wider than container → black bars top & bottom
-      renderWidth = containerWidth;
-      renderHeight = containerWidth / videoAspect;
-      offsetX = 0;
-      offsetY = (containerHeight - renderHeight) / 2;
+      // Video wider → scale to fit height, crop left & right
+      scale = containerHeight / videoH;
     } else {
-      // Video taller than container → black bars left & right
-      renderWidth = containerHeight * videoAspect;
-      renderHeight = containerHeight;
-      offsetX = (containerWidth - renderWidth) / 2;
-      offsetY = 0;
+      // Video taller → scale to fit width, crop top & bottom
+      scale = containerWidth / videoW;
     }
+
+    const renderWidth = videoW * scale;
+    const renderHeight = videoH * scale;
+    // Negative values mean the rendered video starts outside the container edge
+    const offsetX = (containerWidth - renderWidth) / 2;
+    const offsetY = (containerHeight - renderHeight) / 2;
 
     fields.forEach((field, index) => {
       const { x, y, width, height } = field.boundingBox;
@@ -302,7 +299,7 @@ const CameraPage: React.FC = () => {
           autoPlay
           playsInline
           muted
-          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           onCanPlay={() => setIsReady(true)}
         />
 
