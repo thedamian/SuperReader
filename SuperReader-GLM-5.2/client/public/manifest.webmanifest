@@ -1,0 +1,18 @@
+{
+  "name": "SuperReader",
+  "short_name": "SuperReader",
+  "description": "Low-vision form-filling assistant. Point your camera at a form and it tells you what to write.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
